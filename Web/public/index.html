@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Plants</title>
+    <style>
+        div {
+          height: 300px;
+          width: 600px;
+        }
+    </style>
+</head>
+<body>
+
+    <label for="devices">Choose a device:</label>
+
+    <select name="devices" id="devices">
+        <option value="rasp4">Rasp4</option>
+        <option value="rasp3b">Rasp3b</option>
+    </select>
+
+    <p></p>
+    <button onclick="water()">Water the plant</button> 
+    <button onclick="take()">Take picture</button> 
+    <button onclick="view()">View picture</button> 
+    <button onclick="chart()">View humidity</button> 
+    <p id="returnMsg">Please choose a command</p>
+    <div>
+    <p id="imgFrame"> </p>
+    </div>
+</body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/superagent"></script>
+<script>
+    function water(){
+        document.getElementById("returnMsg").innerHTML = "Watering the plant...";
+        document.getElementById("imgFrame").innerHTML = "";
+        var device = document.getElementById('devices').value;
+        console.log('response:',device);
+        var url = `/water?device=${device}`;
+        superagent
+            .get(url)
+            .end(function(err, res){
+                if (err) {
+                    console.log('err:',err);
+                } else {
+                    console.log('response:',res.text);
+                    document.getElementById("returnMsg").innerHTML = res.text;
+                }
+            });
+     }
+     function take(){
+        document.getElementById("returnMsg").innerHTML = "Taking the picture...";
+        document.getElementById("imgFrame").innerHTML = "";
+        var device = document.getElementById('devices').value;
+        console.log('response:',device);
+        var url = `/take?device=${device}`;
+        superagent
+            .get(url)
+            .end(function(err, res){
+                if (err) {
+                    console.log('err:',err);
+                } else {
+                    console.log('response:',res.text);
+                    document.getElementById("returnMsg").innerHTML = res.text;
+                }
+            });
+     }
+     function view(){
+        document.getElementById("returnMsg").innerHTML = "Loading the picture...";
+        document.getElementById("imgFrame").innerHTML = "";
+        var device = document.getElementById('devices').value;
+        var url = `/view?device=${device}`;
+        superagent
+            .get(url)
+            .end(function(err, res){
+                if (err) {
+                    console.log('err:',err);
+                } else {
+                    console.log('picture received');
+                    document.getElementById("imgFrame").innerHTML = res.text;
+                    document.getElementById("returnMsg").innerHTML = "Picture loaded";
+                }
+            });
+     }
+     function chart(){
+        document.getElementById("returnMsg").innerHTML = "Generating chart...";
+        document.getElementById("imgFrame").innerHTML = "";
+        var device = document.getElementById('devices').value;
+        var url = `/chart?device=${device}`;
+        superagent
+            .get(url)
+            .end(function(err, res){
+                if (err) {
+                    console.log('err:',err);
+                } else {
+                    document.getElementById("imgFrame").innerHTML = "<canvas id='myChart' height='160'></canvas>";
+                    const ctx = document.getElementById('myChart');
+                    const epoch = res.body.label;
+                    const myChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: epoch.map(e => e * 1000),
+                            datasets: [{
+                                label: 'Sensor raw counts',
+                                data: res.body.data,
+                                fill: false,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                xAxes: [{
+                                    type: 'time',
+                                    time: {
+                                        parser: "MM/DD/YYYY"
+                                    }
+                                }]
+                            },
+                            title: {
+                                display: true,
+                                text: 'Soil moisture, last 7 days, higher = drier'
+                            }
+                        }
+                    });
+                    document.getElementById("returnMsg").innerHTML = "Chart loaded";
+                }
+            });
+     }
+
+</script>
+
+</html>
