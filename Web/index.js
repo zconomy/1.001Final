@@ -141,7 +141,15 @@ app.get('/chart', function(req, res){
   dynamodb.query(params, function(err, data) {
     data.Items.forEach(function(element, index, array) {
       returnData.label.unshift(Number(element.time.S));
-      returnData.data.unshift(Number(element.value.S));
+      if (element.value.S == null)
+      {
+        returnData.data.unshift(Number(element.value.N));
+      }
+      else
+      {
+        returnData.data.unshift(Number(element.value.S));
+      }
+      
     });
     if (err)
     {
