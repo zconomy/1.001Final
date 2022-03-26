@@ -17,15 +17,18 @@
     <label for="devices">Choose a device:</label>
 
     <select name="devices" id="devices">
-        <option value="rasp4">Rasp4</option>
         <option value="rasp3b">Rasp3b</option>
+        <option value="rasp4">Rasp4</option>
+        <option value="rasp4b">Rasp4b</option>
+        <option value="AHT10temp">AHT10temp</option>
+        <option value="AHT10humid">AHT10humid</option>
     </select>
 
     <p></p>
     <button onclick="water()">Water the plant</button> 
     <button onclick="take()">Take picture</button> 
     <button onclick="view()">View picture</button> 
-    <button onclick="chart()">View humidity</button> 
+    <button onclick="chart()">View chart</button> 
     <p id="returnMsg">Please choose a command</p>
     <div>
     <p id="imgFrame"> </p>
