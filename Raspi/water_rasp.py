@@ -3,6 +3,9 @@ import threading
 import time
 import datetime
 import boto3
+import smbus
+import decimal
+from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 from picamera import PiCamera
 
@@ -13,15 +16,25 @@ deviceName = 'default'
 #############################
 def main():
     heartBeat()
-    readCtrlDbTask()
-    readSerialTask()
+    if deviceName != 'AHT10':
+        readCtrlDbTask()
+        readSerialTask()
 
 #############################
 # report to DB every 5 sec
 #############################
 def heartBeat():
     putDb('rasp_ping', deviceName, 'ping', 'ON')
-    thread_heartBeat = threading.Timer(5.0, heartBeat)
+    if deviceName == 'AHT10':
+        m = AHT10(1)
+        tmpData = m.getData()
+        th1 = threading.Thread(target=putDb, args=('rasp_data', deviceName+'temp', 'temp', Decimal(tmpData[0])))
+        th2 = threading.Thread(target=putDb, args=('rasp_data', deviceName+'humid', 'humid', Decimal(tmpData[1])))
+        th1.start()
+        th2.start()
+        thread_heartBeat = threading.Timer(600, heartBeat)
+    else:
+        thread_heartBeat = threading.Timer(5.0, heartBeat)
     thread_heartBeat.start()
 
 #############################
@@ -137,7 +150,38 @@ def putS3(filePath, bucketName, keyName):
         retVal = False
     return retVal
 
+#############################
+# class for Temperature/humidity sensor AHT10
+# from: https://github.com/momoru-kun/AHT10
+#############################
+class AHT10:
+    CONFIG = [0x08, 0x00]
+    MEASURE = [0x33, 0x00]
+
+    # bus - I2C bus. "ls /dev | grep i2c-"
+    # addr - AHT10 I2C address. Default is 0x38
+    # using AHT10 I2C may cause bugs to bluetooth (I do not use bluetooth)
+    def __init__(self, bus, addr=0x38):
+        self.bus = smbus.SMBus(bus)
+        self.addr = addr
+        self.bus.write_i2c_block_data(self.addr, 0xE1, self.CONFIG)
+        time.sleep(0.2) #Wait for AHT to do config > 20ms
+
+    # getData - gets temperature and humidity
+    # returns tuple: getData[0] is Temp, getData[1] is humidity
+    def getData(self):
+        byte = self.bus.read_byte(self.addr)
+        self.bus.write_i2c_block_data(self.addr, 0xAC, self.MEASURE)
+        time.sleep(0.5) # wait for readings > 75ms
+        data = self.bus.read_i2c_block_data(self.addr, 0x00)
+        temp = ((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]
+        ctemp = (temp / 1048576)*200 - 50
+        hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4
+        chum = int((hum  / 1048576)* 100)
+        return (ctemp, chum)
+
 if __name__ == "__main__":
     if deviceName == 'default':
         deviceName = input("Enter device name, rasp4 or rasp3b: ")
     main()
+
