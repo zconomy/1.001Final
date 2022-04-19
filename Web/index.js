@@ -1,11 +1,13 @@
 const express = require('express');
 const app = express();
 const AWS = require('aws-sdk');
+
 AWS.config.update({region: 'us-west-1'});
 
 var https = require('https');
 var http = require('http');
 var fs = require('fs');
+const axios = require('axios')
 
 var options = {
   key: fs.readFileSync('server.key'),
@@ -92,10 +94,6 @@ app.get('/water', function(req, res){
 });
 
 app.get('/view', function(req, res){
-  const bucketParams = {
-    Bucket: "waterpic",
-    Key: "pic.jpg"
-  };
   let s3 = new AWS.S3();
   async function getImage(){
           const data =  s3.getObject(
@@ -118,6 +116,74 @@ app.get('/view', function(req, res){
             return base64;
         }
 });
+
+app.get('/preview', function(req, res){
+  let s3 = new AWS.S3();
+  async function getImage(){
+          const data =  s3.getObject(
+            {
+                Bucket: 'waterpic',
+                Key: 'pic.jpg'
+              }
+            
+          ).promise();
+          return data;
+        }
+  getImage()
+    .then((img)=>{
+          let image="<img src='data:image/jpeg;base64," + encode(img.Body) + "'" + "width='200' height='150' " + "/>";
+          res.send(image);
+        })
+  function encode(data){
+            let buf = Buffer.from(data);
+            let base64 = buf.toString('base64');
+            return base64;
+        }
+});
+
+app.get('/identify', function(req, res){
+  let s3 = new AWS.S3();
+  async function getImage(){
+          const data =  s3.getObject(
+            {
+                Bucket: 'waterpic',
+                Key: 'pic.jpg'
+              }
+            
+          ).promise();
+          return data;
+        }
+  getImage()
+    .then((img)=>{
+          const base64files = [encode(img.Body)];
+          const data = {
+            //api_key: "true API removed for security",
+            images: base64files,
+            modifiers: ["crops_fast", "similar_images", "health_all", "disease_similar_images"],
+            plant_language: "en",
+            plant_details: ["common_names",
+                "url",
+                "name_authority",
+                "wiki_description",
+                "taxonomy",
+                "synonyms"],
+            disease_details: ["common_names", "url", "description"]
+          };
+          axios.post('https://api.plant.id/v2/identify', data).then(apiRes => {
+            console.log('Success');
+            res.send(apiRes.data);
+          }).catch(error => {
+              console.error('Error: ', error)
+          })
+          
+        })
+  function encode(data){
+            let buf = Buffer.from(data);
+            let base64 = buf.toString('base64');
+            return base64;
+        }
+});
+
 
 app.get('/chart', function(req, res){
   var deviceName = req.query.device;
