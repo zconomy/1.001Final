@@ -124,7 +124,10 @@
                     console.log('err:',err);
                 } else {
                     console.log('picture received');
-                    document.getElementById("plantInfo").innerHTML = res.body.suggestions[0].plant_details.common_names[0];
+                    let resBody = "<p>#Common Name#</p><p>";
+                    resBody = resBody + res.body.suggestions[0].plant_details.common_names[0] + "</p>" + "<p>#Health#</p><p>";
+                    resBody = resBody + res.body.health_assessment.diseases[1].disease_details.name + "; Confidence: " + res.body.health_assessment.diseases[1].probability + "</p>";
+                    document.getElementById("plantInfo").innerHTML = resBody;
                     document.getElementById("returnMsg").innerHTML = "Identification loaded";
                     console.log(res);
                 }
