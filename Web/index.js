@@ -7,7 +7,10 @@ AWS.config.update({region: 'us-west-1'});
 var https = require('https');
 var http = require('http');
 var fs = require('fs');
-const axios = require('axios')
+
+const axios = require('axios');
+const waterThresh = new Array();
+setInterval(autoWaterFunc, 10000);
 
 var options = {
   key: fs.readFileSync('server.key'),
@@ -228,3 +231,37 @@ app.get('/chart', function(req, res){
     }
   });
 });
+
+app.get('/setThresh', function(req, res){
+  var deviceName = req.query.device;
+  var thresh = req.query.thresh;
+  var isFound = false;
+
+  if (waterThresh.length>0)
+  {
+    waterThresh.forEach(function(obj, index, array) {
+      if(obj.device == deviceName)
+      {
+        obj.thresh = thresh;
+        isFound = true;
+        console.log("thresh updated");
+      }
+    });
+  }
+
+  if (isFound == false)
+  {
+    const threshObj = new Object(); 
+    threshObj.device = deviceName;
+    threshObj.thresh = thresh;
+    waterThresh.push(threshObj);
+    console.log("thresh added");
+  }
+  res.send(thresh);
+});
+
+function autoWaterFunc() {
+  console.log('autoWater Working');
+  console.log(waterThresh);
+}
+
