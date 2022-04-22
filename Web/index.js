@@ -10,7 +10,7 @@ var fs = require('fs');
 
 const axios = require('axios');
 const waterThresh = new Array();
-setInterval(autoWaterFunc, 10000);
+setInterval(autoWaterFunc, 1800000);
 
 var options = {
   key: fs.readFileSync('server.key'),
@@ -263,5 +263,84 @@ app.get('/setThresh', function(req, res){
 function autoWaterFunc() {
   console.log('autoWater Working');
   console.log(waterThresh);
+  
+  if (waterThresh.length>0)
+  {
+    var dynamodb = new AWS.DynamoDB();
+    waterThresh.forEach(function(obj, index, array) {
+      var moist = 0;
+      var deviceName = obj.device;
+      var params = {
+        ExpressionAttributeValues: {
+         ":v1": {
+           S: deviceName
+          }
+        }, 
+        KeyConditionExpression: "device = :v1", 
+        TableName: "rasp_data",
+        ScanIndexForward: false,
+        Limit: 1
+      };
+      dynamodb.query(params, function(err, data) {
+        data.Items.forEach(function(element, index, array) {
+          if (element.value.S == null)
+          {
+            moist = Number(element.value.N);
+          }
+          else
+          {
+            moist = Number(element.value.S);
+          }
+          console.log(moist);
+        });
+        if (err)
+        {
+          console.log(err, err.stack); // an error occurred
+        }
+        else
+        {
+          if (moist > obj.thresh)
+          {
+            console.log("water", deviceName);
+            var date_now = new Date();
+            var sec_now = (Math.round(date_now.getTime() / 1000)).toString();
+            date_now = date_now.toString();
+            const putParams = {
+              Item: {
+               "device": {
+                S: deviceName
+                }, 
+               "time": {
+                 S: sec_now
+                }, 
+               "date": {
+                 S: date_now
+                },
+                "category": {
+                 S: "status"
+                },
+                "value": {
+                  S: "water"
+                 }
+              }, 
+              ReturnConsumedCapacity: "TOTAL", 
+              TableName: "rasp_control"
+            };
+            dynamodb.putItem(putParams, function(err, data){
+              if (err) console.log(err, err.stack); // an error occurred
+              else     console.log(data);           // successful response
+            });
+          }
+          else
+          {
+            console.log("no need water", deviceName);
+          }
+        }
+ 
+      });
+    });
+
+  }
+
 }
 

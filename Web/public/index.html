@@ -187,7 +187,9 @@
         document.getElementById("imgFrame").innerHTML = "<input type=\"number\" id=\"waterThresh\" value=\"32768\"><button onclick=\"setThresh()\">Submit</button>";
         document.getElementById("plantInfo").innerHTML = "";
         
-        function setThresh(){
+     }
+
+     function setThresh(){
             var device = document.getElementById('devices').value;
             var threshold = document.getElementById('waterThresh').value;
             var url = `/setThresh?device=${device}&thresh=${threshold}`;
@@ -202,8 +204,6 @@
                     }
                 });
         }
-     }
-
 
 </script>
 
