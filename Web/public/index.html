@@ -160,6 +160,20 @@
                                 fill: false,
                                 borderColor: 'rgb(75, 192, 192)',
                                 tension: 0.1
+                            },
+                            {
+                                label: 'AutoWater Level',
+                                data: res.body.data_ref,
+                                fill: false,
+                                borderColor: 'rgb(11, 13, 150)',
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Prediction',
+                                data: res.body.data_pred,
+                                fill: false,
+                                borderColor: 'rgb(176, 65, 40)',
+                                tension: 0.1
                             }]
                         },
                         options: {
@@ -203,7 +217,41 @@
                         document.getElementById("imgFrame").innerHTML = res.text;
                     }
                 });
-        }
+    }
+
+    function predict(){
+        document.getElementById("returnMsg").innerHTML = "Click submit to set the model:";
+        document.getElementById("imgFrame").innerHTML = `
+        <form>
+            <input type=number id="value" step=any value = "0.000"/> * moisture level + <br />
+            <input type=number id="humid" step=any value = "0.000"/> * humidity level + <br />
+            <input type=number id="temp" step=any value = "0.000"/> * room temperature + <br />
+            <input type=number id="hour" step=any value = "0.000"/> * hour of the day + <br />
+            <input type=number id="intercept" step=any value = "0.000"/> + intercept <br />
+        </form>
+        <button onclick=\"setModel()\">Submit</button>
+        `;
+        document.getElementById("plantInfo").innerHTML = "";
+     }
+
+     function setModel(){
+            var device = document.getElementById('devices').value;
+            var value = document.getElementById('value').value;
+            var humid = document.getElementById('humid').value;
+            var temp = document.getElementById('temp').value;
+            var hour = document.getElementById('hour').value;
+            var intercept = document.getElementById('intercept').value;
+            var url = `/setPred?device=${device}&value=${value}&humid=${humid}&temp=${temp}&hour=${hour}&intercept=${intercept}`;
+            superagent
+                .get(url)
+                .end(function(err, res){
+                    if (err) {
+                        console.log('err:',err);
+                    } else {
+                        document.getElementById("returnMsg").innerHTML = res.text;
+                    }
+                });
+    }
 
 </script>
 

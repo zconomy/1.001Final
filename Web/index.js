@@ -10,6 +10,8 @@ var fs = require('fs');
 
 const axios = require('axios');
 const waterThresh = new Array();
+const predModel = new Array();
+
 setInterval(autoWaterFunc, 1800000);
 
 var options = {
@@ -190,12 +192,26 @@ app.get('/identify', function(req, res){
 
 app.get('/chart', function(req, res){
   var deviceName = req.query.device;
+  var predLen = 72; //hours, prediction
   var returnData = {
     label: [],
-    data: []
+    data: [],
+    data_ref: [],
+    data_pred: []
   };
-  var dynamodb = new AWS.DynamoDB();
+  var thresh = NaN;
+  
+  waterThresh.forEach(function(obj, index, array) {
+    if(obj.device == deviceName)
+    {
+      thresh = obj.thresh;
+    }
+  });
 
+  var dynamodb = new AWS.DynamoDB();
+  var humid = NaN;
+  var temp = NaN;
+  deviceName = "AHT10humid";
   var params = {
     ExpressionAttributeValues: {
      ":v1": {
@@ -205,18 +221,17 @@ app.get('/chart', function(req, res){
     KeyConditionExpression: "device = :v1", 
     TableName: "rasp_data",
     ScanIndexForward: false,
-    Limit: 10080
+    Limit: 1
   };
   dynamodb.query(params, function(err, data) {
     data.Items.forEach(function(element, index, array) {
-      returnData.label.unshift(Number(element.time.S));
       if (element.value.S == null)
       {
-        returnData.data.unshift(Number(element.value.N));
+        humid = Number(element.value.N);
       }
       else
       {
-        returnData.data.unshift(Number(element.value.S));
+        humid = Number(element.value.S);
       }
       
     });
@@ -226,8 +241,104 @@ app.get('/chart', function(req, res){
     }
     else
     {
-      console.log("success in chart!");           // successful response
-      res.send(returnData);
+      console.log(deviceName, humid);           // successful response
+      
+      deviceName = "AHT10temp";
+      params = {
+        ExpressionAttributeValues: {
+         ":v1": {
+           S: deviceName
+          }
+        }, 
+        KeyConditionExpression: "device = :v1", 
+        TableName: "rasp_data",
+        ScanIndexForward: false,
+        Limit: 1
+      };
+      dynamodb.query(params, function(err, data) {
+        data.Items.forEach(function(element, index, array) {
+          if (element.value.S == null)
+          {
+            temp = Number(element.value.N);
+          }
+          else
+          {
+            temp = Number(element.value.S);
+          }
+          
+        });
+        if (err)
+        {
+          console.log(err, err.stack); // an error occurred
+        }
+        else
+        {
+          console.log(deviceName, temp);           // successful response
+          deviceName = req.query.device;
+
+          params = {
+            ExpressionAttributeValues: {
+             ":v1": {
+               S: deviceName
+              }
+            }, 
+            KeyConditionExpression: "device = :v1", 
+            TableName: "rasp_data",
+            ScanIndexForward: false,
+            Limit: 10080
+          };
+          dynamodb.query(params, function(err, data) {
+            data.Items.forEach(function(element, index, array) {
+              returnData.label.unshift(Number(element.time.S));
+              if (element.value.S == null)
+              {
+                returnData.data.unshift(Number(element.value.N));
+              }
+              else
+              {
+                returnData.data.unshift(Number(element.value.S));
+                returnData.data_ref.unshift(thresh);
+                returnData.data_pred.unshift(NaN);
+              }
+              
+            });
+            if (err)
+            {
+              console.log(err, err.stack); // an error occurred
+            }
+            else
+            {
+              console.log("success in chart!");           // successful response
+              predModel.forEach(function(obj, index, array) {
+                if(obj.device == deviceName)
+                {
+                  var curSec = returnData.label[returnData.label.length-1];
+                  var dt = new Date(1000*curSec);
+                  var curHour = dt.getUTCHours();
+                  var curMoist = returnData.data[returnData.data.length-1]
+                  console.log("hour", curHour);
+                  console.log("humid", humid);
+                  console.log("temp", temp);
+                  for (let i = 0; i < predLen; i++) {
+                    curSec = curSec + 3600;
+                    returnData.label.push(curSec);
+                    curHour = curHour + 1;
+                    if(curHour >= 24)
+                    {
+                      curHour = curHour - 24;
+                    }
+                    curMoist = curMoist + Number(obj.value)*curMoist + Number(obj.humid)*humid + Number(obj.temp)*temp + Number(obj.hour)*curHour + Number(obj.intercept);
+                    returnData.data_pred.push(curMoist);
+                    returnData.data_ref.push(thresh);
+                    returnData.data.push(NaN);
+                  }
+                }
+              });
+              res.send(returnData);
+            }
+          });
+        }
+      });
     }
   });
 });
@@ -258,6 +369,48 @@ app.get('/setThresh', function(req, res){
     console.log("thresh added");
   }
   res.send(thresh);
+});
+
+app.get('/setPred', function(req, res){
+  var deviceName = req.query.device;
+
+  var param_value = req.query.value;
+  var param_humid = req.query.humid;
+  var param_temp = req.query.temp;
+  var param_hour = req.query.hour;
+  var param_intercept = req.query.intercept;
+
+  var isFound = false;
+  if (predModel.length>0)
+  {
+    predModel.forEach(function(obj, index, array) {
+      if(obj.device == deviceName)
+      {
+        obj.value = param_value;
+        obj.humid = param_humid;
+        obj.temp = param_temp;
+        obj.hour = param_hour;
+        obj.intercept = param_intercept;
+        isFound = true;
+        console.log("model updated");
+      }
+    });
+  }
+
+  if (isFound == false)
+  {
+    const predObj = new Object(); 
+    predObj.device = deviceName;
+    predObj.value = param_value;
+    predObj.humid = param_humid;
+    predObj.temp = param_temp;
+    predObj.hour = param_hour;
+    predObj.intercept = param_intercept;
+    predModel.push(predObj);
+    console.log("model added");
+  }
+  console.log(predModel);
+  res.send("model updated");
 });
 
 function autoWaterFunc() {
