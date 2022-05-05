@@ -41,14 +41,14 @@ def heartBeat():
 # ask the microcontroller to water as requested
 #############################
 def writeSerialTask():
-    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1) # ACM1 for second USB
     ser.write(b"water\n")
 
 #############################
 # read from the microcontroller about feedbacks
 #############################
 def readSerialTask():
-    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1) # ACM1 for second USB
     newMsg = 0
     while newMsg < 1:
         if ser.is_open > 0:
