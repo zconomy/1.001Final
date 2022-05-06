@@ -20,3 +20,11 @@ Arduino: connects to the PI via USB serial, one PI can accommondate multiple ard
 Humidity sensor: connects to arduino via ADC
 Relay: Arduino DO for relay control signal, use PI's 5V pin for power input
 Pump: connects to relay via USB pin-out board
+
+# aws
+rasp_data:
+device(partition)/time(sort)/category/date/value
+rasp_control:
+device(partition)/time(sort)/category/date/value
+rasp_ping:
+device(partition)/time(sort)/category/date/value
